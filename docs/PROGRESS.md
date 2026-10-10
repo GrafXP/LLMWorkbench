@@ -15,3 +15,10 @@
 - Asynchronous execution, queue pause/resume, cancellation, retry, upstream failure blocking, and human selection checkpoints.
 - Reopening recovers interrupted jobs and retains completed work; resource leases never span human checkpoints.
 - Tests cover restart/resume, snapshot isolation, duplicate submissions, published artifacts, and downstream failure recovery.
+
+## Step 3 — resource telemetry
+
+- Background sampling of physical RAM, system commit, total CPU, per-logical-core CPU, NVIDIA utilisation/VRAM, and supported temperature/power/clocks.
+- Separate working-set/private-memory and normalised CPU readings for the workbench and external inference processes.
+- Bounded timestamped histories and job markers, with unavailable metrics retained as missing values.
+- Tests cover history bounds and actual Windows CPU/RAM sampling.
