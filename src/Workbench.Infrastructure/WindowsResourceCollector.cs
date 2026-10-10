@@ -62,7 +62,7 @@ public sealed class WindowsResourceCollector : IResourceCollector
                         if (_processBaseline.TryGetValue(process.Id, out var previous) && now > previous.At && cpu >= previous.Cpu)
                             usage = Math.Clamp((cpu - previous.Cpu).TotalSeconds / (now - previous.At).TotalSeconds / Environment.ProcessorCount * 100, 0, 100);
                         _processBaseline[process.Id] = (cpu, now);
-                        samples.Add(new(process.Id, process.ProcessName, process.Id == Environment.ProcessId ? "Workbench" : "External", usage, process.WorkingSet64, process.PrivateMemorySize64));
+                        samples.Add(new(process.Id, process.ProcessName, process.Id == Environment.ProcessId ? "Workbench" : ManagedProcessLifetime.IsManaged(process.Id) ? "Managed" : "External", usage, process.WorkingSet64, process.PrivateMemorySize64));
                     }
                     catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception or NotSupportedException) { }
                 }

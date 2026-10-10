@@ -9,6 +9,8 @@ public sealed class BuiltinExecutor : INodeExecutor
     public Task<ExecutionResult> ExecuteAsync(JobContext context, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        if (context.Node.Settings.ContainsKey(ManualOutputs.Setting))
+            throw new InvalidOperationException("Saved manual outputs require the project's generation executor.");
         return Task.FromResult(context.Node.Kind switch
         {
             NodeKind.Text => Text(context),

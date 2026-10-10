@@ -5,7 +5,7 @@ namespace Workbench.Core;
 
 public enum ArtifactKind { Text, ImageSpecification, SpeechSpecification, MusicSpecification, Image, SpeechAudio, MusicAudio }
 public enum Cardinality { Single, Collection }
-public enum NodeKind { Text, Collect, Select, Image, Speech, Music }
+public enum NodeKind { Text, Collect, Select, Image, Speech, Music, GenerateText, Variations, PrepareImage, Branch }
 public enum JobState { Queued, WaitingForInput, Running, AwaitingSelection, Done, Failed, Cancelled, Interrupted, Blocked }
 public enum ResourceKind { Cpu, Gpu }
 
@@ -26,13 +26,27 @@ public sealed record GraphNode(Guid Id, NodeKind Kind, string Title, double X, d
         NodeKind.Select => new(Guid.NewGuid(), kind, "Choose favourites", x, y,
             [new("items", "Candidates", type, Cardinality.Collection, true),
              new("chosen", "Selected", type, Cardinality.Collection, false)], new()),
+        NodeKind.GenerateText => new(Guid.NewGuid(), kind, "Write with Qwen", x, y,
+            [new("source", "Brief", ArtifactKind.Text, Cardinality.Single, true), new("text", "Text", ArtifactKind.Text, Cardinality.Single, false)],
+            new() { ["instructions"] = "Write an image description from this brief." }),
+        NodeKind.Variations => new(Guid.NewGuid(), kind, "Text variations", x, y,
+            [new("items", "Source texts", ArtifactKind.Text, Cardinality.Collection, true), new("texts", "Variations", ArtifactKind.Text, Cardinality.Collection, false)],
+            new() { ["count"] = "6", ["instructions"] = "Vary composition, lighting and atmosphere; preserve the main subject." }),
+        NodeKind.PrepareImage => new(Guid.NewGuid(), kind, "Prepare image prompts", x, y,
+            [new("texts", "Texts", ArtifactKind.Text, Cardinality.Collection, true), new("specs", "Image prompts", ArtifactKind.ImageSpecification, Cardinality.Collection, false)],
+            new() { ["profiles"] = "klein4b", ["width"] = "512", ["height"] = "512", ["seeds"] = "42", ["negative"] = "" }),
+        NodeKind.Image => new(Guid.NewGuid(), kind, "Render image batch", x, y,
+            [new("prompt", "Image prompts", ArtifactKind.ImageSpecification, Cardinality.Collection, true), new("outputs", "Images", ArtifactKind.Image, Cardinality.Collection, false)], new()),
+        NodeKind.Branch => new(Guid.NewGuid(), kind, "Branch from favourites", x, y,
+            [new("chosen", "Selected images", ArtifactKind.Image, Cardinality.Collection, true), new("texts", "Source texts", ArtifactKind.Text, Cardinality.Collection, false)],
+            new() { ["feedback"] = "" }),
         _ => new(Guid.NewGuid(), kind, $"Generate {kind.ToString().ToLowerInvariant()}", x, y,
             [new("prompt", "Specification", kind switch { NodeKind.Image => ArtifactKind.ImageSpecification, NodeKind.Speech => ArtifactKind.SpeechSpecification, _ => ArtifactKind.MusicSpecification }, Cardinality.Single, true),
              new("outputs", "Outputs", kind switch { NodeKind.Image => ArtifactKind.Image, NodeKind.Speech => ArtifactKind.SpeechAudio, _ => ArtifactKind.MusicAudio }, Cardinality.Collection, false)], new())
     };
 }
 public sealed record GraphEdge(Guid Id, Guid SourceNode, string SourcePort, Guid TargetNode, string TargetPort);
-public sealed record GraphRevision(Guid Id, GraphNode[] Nodes, GraphEdge[] Edges)
+public sealed record GraphRevision(Guid Id, GraphNode[] Nodes, GraphEdge[] Edges, Guid? SourceRevisionId = null)
 {
     public static GraphRevision Empty => new(Guid.NewGuid(), [], []);
 }

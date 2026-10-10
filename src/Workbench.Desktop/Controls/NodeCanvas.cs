@@ -63,7 +63,7 @@ public sealed class NodeCanvas : FrameworkElement
             if (!nodes.TryGetValue(edge.SourceNode, out var source) || !nodes.TryGetValue(edge.TargetNode, out var target)) continue;
             var output = source.Ports.Single(p => p.Id == edge.SourcePort);
             var input = target.Ports.Single(p => p.Id == edge.TargetPort);
-            Wire(dc, PortPosition(source, output), PortPosition(target, input), source.Id == Model!.SelectedNodeId || target.Id == Model.SelectedNodeId ? AccentBrush : MutedBrush);
+            Wire(dc, PortPosition(source, output), PortPosition(target, input), Model!.ArtifactPath.Contains(source.Id) && Model.ArtifactPath.Contains(target.Id) ? GoldBrush : source.Id == Model.SelectedNodeId || target.Id == Model.SelectedNodeId ? AccentBrush : MutedBrush);
         }
         if (_wire is { } wire) Wire(dc, PortPosition(wire.Node, wire.Port), _wireEnd, AccentBrush);
         foreach (var node in graph.Nodes)
@@ -71,10 +71,20 @@ public sealed class NodeCanvas : FrameworkElement
             var pos = Position(node); var rect = new Rect(pos, new Size(GraphNode.Width, GraphNode.Height));
             if (!rect.IntersectsWith(visible)) continue;
             var selected = node.Id == Model!.SelectedNodeId;
-            dc.DrawRoundedRectangle(NodeBrush, new(selected ? AccentBrush : Brush("#435064"), selected ? 2 : 1), rect, 9, 9);
+            dc.DrawRoundedRectangle(NodeBrush, new(selected ? AccentBrush : Model.ArtifactPath.Contains(node.Id) ? GoldBrush : Brush("#435064"), selected ? 2 : 1), rect, 9, 9);
             dc.DrawRoundedRectangle(HeaderBrush, null, new(pos, new Size(GraphNode.Width, 38)), 9, 9);
             Text(dc, node.Title, pos + new Vector(14, 10), 13, ForegroundBrush, 232);
-            var snippet = node.Kind == NodeKind.Text ? node.Settings.GetValueOrDefault("text", "Write a text draft…").ReplaceLineEndings(" ") : node.Kind == NodeKind.Collect ? "Gather connected text drafts" : "Choose favourites to continue";
+            var snippet = node.Kind switch
+            {
+                NodeKind.Text => node.Settings.GetValueOrDefault("text", "Write a text draft…").ReplaceLineEndings(" "),
+                NodeKind.Collect => "Gather connected text drafts",
+                NodeKind.GenerateText => "Qwen · " + node.Settings.GetValueOrDefault("instructions", "Write text"),
+                NodeKind.Variations => node.Settings.GetValueOrDefault("count", "6") + " variations per source · Qwen",
+                NodeKind.PrepareImage => "Prompts for " + node.Settings.GetValueOrDefault("profiles", "klein4b"),
+                NodeKind.Image => "Saved image batch · one GPU worker",
+                NodeKind.Branch => "Selected source texts + feedback",
+                _ => "Choose favourites to continue"
+            };
             Text(dc, string.IsNullOrWhiteSpace(snippet) ? "Write a text draft…" : snippet, pos + new Vector(14, 48), 10, MutedBrush, 232);
             foreach (var port in node.Ports)
             {

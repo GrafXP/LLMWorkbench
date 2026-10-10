@@ -13,6 +13,10 @@ public sealed class JobScheduler(IProjectStore store, INodeExecutor executor, Re
     public event Action<ExecutionEvent>? Changed;
     public void Pause() => _paused = true;
     public void Resume() => _paused = false;
+    public async Task WaitAtBoundaryAsync(CancellationToken ct)
+    {
+        while (_paused) await Task.Delay(180, ct);
+    }
     public RunSnapshot Submit(ProjectDocument project, Guid commandId)
     {
         if (project.Graph.Nodes.Length == 0) throw new InvalidOperationException("Add a text node to the graph first.");
@@ -22,10 +26,20 @@ public sealed class JobScheduler(IProjectStore store, INodeExecutor executor, Re
     }
     public async Task RunLoopAsync(CancellationToken ct)
     {
+        if (executor is IProgressExecutor reporting) reporting.Progress += UpdateProgress;
+        try
+        {
         while (!ct.IsCancellationRequested)
         {
             if (!await ProcessNextAsync(ct)) await Task.Delay(180, ct);
         }
+        }
+        finally { if (executor is IProgressExecutor reportingEnd) reportingEnd.Progress -= UpdateProgress; }
+    }
+    public void UpdateProgress(Guid jobId, string message)
+    {
+        var job = store.LoadRuns().SelectMany(r => store.LoadJobs(r.Id)).SingleOrDefault(j => j.Id == jobId);
+        if (job?.State == JobState.Running) Save(job with { Message = message });
     }
     public async Task<bool> ProcessNextAsync(CancellationToken ct = default)
     {
@@ -83,7 +97,7 @@ public sealed class JobScheduler(IProjectStore store, INodeExecutor executor, Re
             using var lease = await resources.AcquireAsync(executor.ResourceFor(node.Kind), job.Id, cts.Token);
             var result = await executor.ExecuteAsync(new(run, node, job, inputs), cts.Token);
             cts.Token.ThrowIfCancellationRequested();
-            ValidateResult(node, result, artifacts);
+            ValidateResult(node, result, store.LoadArtifacts().ToDictionary(a => a.Id));
             job = job with { State = result.State, Outputs = result.Outputs, Message = result.Message, FinishedUtc = DateTimeOffset.UtcNow };
             store.Complete(job, result.Artifacts);
             Publish(job);
@@ -107,19 +121,20 @@ public sealed class JobScheduler(IProjectStore store, INodeExecutor executor, Re
     }
     public void Retry(Guid jobId)
     {
+        if (_active.ContainsKey(jobId)) throw new InvalidOperationException("Wait for the cancelled worker to finish before retrying.");
         var job = Find(jobId);
         if (job.State is not (JobState.Failed or JobState.Cancelled or JobState.Interrupted or JobState.Blocked))
             throw new InvalidOperationException("Only a failed, cancelled, interrupted, or blocked job can be retried.");
         Save(job with { State = JobState.Queued, Outputs = [], Message = "Queued for retry", FinishedUtc = null });
     }
-    public void Choose(Guid jobId, Guid[] artifactIds)
+    public void Choose(Guid jobId, Guid[] artifactIds, string feedback = "")
     {
         var job = Find(jobId);
         if (job.State != JobState.AwaitingSelection) throw new InvalidOperationException("This job is not waiting for a selection.");
         var candidates = job.Inputs.Values.SelectMany(x => x).ToHashSet();
         if (artifactIds.Length == 0 || artifactIds.Any(id => !candidates.Contains(id)))
             throw new InvalidOperationException("Choose at least one artifact from this job's candidates.");
-        Save(job with { State = JobState.Queued, Selection = artifactIds.Distinct().ToArray(), Message = "Selection saved" });
+        Save(job with { State = JobState.Queued, Selection = artifactIds.Distinct().ToArray(), Feedback = feedback, Message = "Selection saved" });
     }
     public JobRecord Find(Guid id) => store.LoadRuns().SelectMany(r => store.LoadJobs(r.Id)).Single(j => j.Id == id);
     private static void ValidateResult(GraphNode node, ExecutionResult result, Dictionary<Guid, Artifact> existing)

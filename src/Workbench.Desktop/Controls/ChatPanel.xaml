@@ -1,0 +1,28 @@
+<UserControl x:Class="Workbench.Desktop.Controls.ChatPanel" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <DockPanel Background="{StaticResource Panel}" Margin="10">
+    <StackPanel DockPanel.Dock="Top">
+      <TextBlock Text="QWEN CHAT" Foreground="{StaticResource Accent}" FontSize="12" />
+      <ComboBox ItemsSource="{Binding TextModels}" SelectedItem="{Binding TextModel}" DisplayMemberPath="Label" IsEnabled="{Binding CanSelectTextModel}" Margin="0,8,0,0" ToolTip="{Binding TextModelDetail}">
+        <ComboBox.ItemContainerStyle><Style TargetType="ComboBoxItem" BasedOn="{StaticResource {x:Type ComboBoxItem}}"><Setter Property="IsEnabled" Value="{Binding Profile.Available}" /><Setter Property="ToolTip" Value="{Binding Detail}" /></Style></ComboBox.ItemContainerStyle>
+      </ComboBox>
+      <TextBlock Text="Selected model serves chat and text generation." Style="{StaticResource Caption}" Margin="0,4,0,0" />
+      <TextBlock Text="{Binding ChatStatus}" Style="{StaticResource Caption}" Margin="0,6,0,8" />
+    </StackPanel>
+    <StackPanel DockPanel.Dock="Bottom" Margin="0,8,0,0">
+      <TextBox Text="{Binding ChatInput, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="85" MaxHeight="160" VerticalScrollBarVisibility="Auto" ToolTip="Ask Qwen to create and render an image round" />
+      <StackPanel Orientation="Horizontal"><Button Content="Send to Qwen" Command="{Binding SendChatCommand}" /><Button Content="Cancel chat" Command="{Binding CancelChatCommand}" /></StackPanel>
+      <TextBlock Text="Qwen and images take turns on the GPU. Chat waits for the next image boundary." Style="{StaticResource Caption}" Margin="2,5" />
+    </StackPanel>
+    <ScrollViewer x:Name="Transcript" VerticalScrollBarVisibility="Auto">
+      <StackPanel>
+        <ItemsControl ItemsSource="{Binding Conversation}"><ItemsControl.ItemTemplate><DataTemplate>
+          <Border BorderBrush="#354359" BorderThickness="0,0,0,1" Padding="2,10"><StackPanel>
+            <TextBlock Text="{Binding Role}" Foreground="{StaticResource Accent}" FontSize="11" />
+            <TextBlock Text="{Binding Content}" TextWrapping="Wrap" FontSize="12" Margin="0,4,0,0" />
+          </StackPanel></Border>
+        </DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+        <TextBlock Text="{Binding StreamingReply}" TextWrapping="Wrap" Margin="2,8" FontSize="12" />
+      </StackPanel>
+    </ScrollViewer>
+  </DockPanel>
+</UserControl>

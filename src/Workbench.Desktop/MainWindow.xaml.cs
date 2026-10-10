@@ -12,6 +12,7 @@ public partial class MainWindow : Window
     public MainWindow(WorkbenchViewModel model)
     {
         InitializeComponent(); DataContext = model;
+        model.ViewerRequested += () => { ViewerPanel.IsSelected = true; ViewerPanel.IsActive = true; };
         Closing += OnClosing;
         KeyDown += (_, e) =>
         {
@@ -21,6 +22,12 @@ public partial class MainWindow : Window
         };
     }
     private void FitGraph(object sender, RoutedEventArgs e) => GraphCanvas.Fit();
+    private void ViewResult(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { DataContext: ArtifactChoice result } && DataContext is WorkbenchViewModel model)
+            model.SelectedResult = result;
+        ViewerPanel.IsSelected = true; ViewerPanel.IsActive = true;
+    }
     private async void OnClosing(object? sender, CancelEventArgs e)
     {
         if (_canClose) return;

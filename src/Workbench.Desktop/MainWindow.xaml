@@ -35,28 +35,50 @@
       <dock:DockingManager.Theme><theme:Vs2013DarkTheme /></dock:DockingManager.Theme>
       <layout:LayoutRoot>
         <layout:LayoutPanel Orientation="Horizontal">
-          <layout:LayoutAnchorablePane DockWidth="220">
+          <layout:LayoutAnchorablePane DockWidth="300">
             <layout:LayoutAnchorable Title="Text &amp; agent" ContentId="Draft" CanClose="False">
+              <TabControl>
+                <TabItem Header="Qwen chat"><ctrl:ChatPanel /></TabItem>
+                <TabItem Header="Build flow">
               <ScrollViewer Background="{StaticResource Panel}" VerticalScrollBarVisibility="Auto">
                 <StackPanel Margin="12">
                   <TextBlock Text="BUILD YOUR FLOW" Foreground="{StaticResource Muted}" FontSize="11" Margin="0,0,0,8" />
                   <Button Content="＋ Text draft" Command="{Binding AddTextCommand}" HorizontalContentAlignment="Left" />
                   <Button Content="＋ Collect texts" Command="{Binding AddCollectCommand}" HorizontalContentAlignment="Left" />
                   <Button Content="＋ Select favourites" Command="{Binding AddSelectCommand}" HorizontalContentAlignment="Left" />
+                  <Button Content="＋ Write with Qwen" Command="{Binding AddGenerateTextCommand}" HorizontalContentAlignment="Left" />
+                  <Button Content="＋ Text variations" Command="{Binding AddVariationsCommand}" HorizontalContentAlignment="Left" />
+                  <Button Content="＋ Prepare image prompts" Command="{Binding AddPrepareCommand}" HorizontalContentAlignment="Left" />
+                  <Button Content="＋ Render images" Command="{Binding AddImageCommand}" HorizontalContentAlignment="Left" />
+                  <Button Content="＋ Select images" Command="{Binding AddImageSelectCommand}" HorizontalContentAlignment="Left" />
                   <TextBlock Text="Connect an output dot to an input dot. Collections use gold ports." Style="{StaticResource Caption}" Margin="2,10,2,12" />
                   <Button Content="Example workflow" Command="{Binding ExampleCommand}" />
-                  <Separator Margin="0,16" />
-                  <TextBlock Text="QWEN CHAT" Foreground="{StaticResource Muted}" FontSize="11" />
-                  <TextBlock Text="Agent not connected" FontSize="15" Margin="0,8,0,4" />
-                  <TextBlock Text="You can prepare text drafts manually and add them to the graph." Style="{StaticResource Caption}" />
+                  <Expander Header="Image round" IsExpanded="True"><StackPanel Margin="0,8">
+                    <TextBlock Text="Brief" Style="{StaticResource Caption}" />
+                    <TextBox Text="{Binding RoundBrief, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="60" />
+                    <TextBlock Text="What to vary / preserve" Style="{StaticResource Caption}" Margin="0,8,0,3" />
+                    <TextBox Text="{Binding RoundInstructions, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="55" />
+                    <TextBlock Text="Variations per source" Style="{StaticResource Caption}" Margin="0,8,0,3" /><TextBox Text="{Binding RoundCount, UpdateSourceTrigger=PropertyChanged}" />
+                    <ComboBox ItemsSource="{Binding Models}" SelectedItem="{Binding ImageModel}" DisplayMemberPath="Label" Margin="0,8,0,3"><ComboBox.ItemContainerStyle><Style TargetType="ComboBoxItem" BasedOn="{StaticResource {x:Type ComboBoxItem}}"><Setter Property="IsEnabled" Value="{Binding Profile.Available}" /><Setter Property="ToolTip" Value="{Binding Detail}" /></Style></ComboBox.ItemContainerStyle></ComboBox>
+                    <TextBlock Text="{Binding ModelDetail}" Style="{StaticResource Caption}" />
+                    <StackPanel Orientation="Horizontal" Margin="0,8"><TextBox Text="{Binding RoundWidth}" Width="65" ToolTip="Width" /><TextBlock Text=" × " VerticalAlignment="Center" /><TextBox Text="{Binding RoundHeight}" Width="65" ToolTip="Height" /></StackPanel>
+                    <TextBlock Text="Seeds · comma separated; -1 for random" Style="{StaticResource Caption}" /><TextBox Text="{Binding RoundSeeds, UpdateSourceTrigger=PropertyChanged}" />
+                    <TextBlock Text="{Binding BatchPreview}" TextWrapping="Wrap" Foreground="#F3C979" FontSize="11" Margin="0,8" />
+                    <Button Content="Add image round" Command="{Binding AddRoundCommand}" />
+                    <Button Content="Next round from selection" Command="{Binding BranchCommand}" />
+                    <Button Content="Refresh model library" Command="{Binding RefreshModelsCommand}" />
+                  </StackPanel></Expander>
                   <TextBlock Text="Draft text" Margin="0,16,0,5" />
                   <TextBox Text="{Binding Draft, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="170" VerticalScrollBarVisibility="Auto" />
                   <Button Content="Add draft to graph" Command="{Binding SaveDraftCommand}" Margin="0,8,0,0" />
                 </StackPanel>
               </ScrollViewer>
+                </TabItem>
+              </TabControl>
             </layout:LayoutAnchorable>
           </layout:LayoutAnchorablePane>
           <layout:LayoutPanel Orientation="Vertical">
+            <layout:LayoutPanel Orientation="Horizontal">
             <layout:LayoutDocumentPane>
               <layout:LayoutDocument Title="Workflow graph" ContentId="Graph" CanClose="False" CanFloat="False">
                 <DockPanel Background="#141A23">
@@ -70,7 +92,13 @@
                 </DockPanel>
               </layout:LayoutDocument>
             </layout:LayoutDocumentPane>
-            <layout:LayoutPanel Orientation="Horizontal" DockHeight="270">
+            <layout:LayoutAnchorablePane DockWidth="420">
+              <layout:LayoutAnchorable x:Name="ViewerPanel" Title="Image &amp; text viewer" ContentId="Viewer" CanClose="False" IsSelected="True">
+                <ctrl:ArtifactViewer x:Name="ResultViewer" />
+              </layout:LayoutAnchorable>
+            </layout:LayoutAnchorablePane>
+            </layout:LayoutPanel>
+            <layout:LayoutPanel Orientation="Horizontal" DockHeight="340">
               <layout:LayoutAnchorablePane DockWidth="520">
                 <layout:LayoutAnchorable Title="Results &amp; selection" ContentId="Results" CanClose="False" IsSelected="True">
                   <DockPanel Background="{StaticResource Panel}" Margin="8">
@@ -79,10 +107,12 @@
                       <ComboBox ItemsSource="{Binding Runs}" SelectedItem="{Binding SelectedRun}" DisplayMemberPath="Label" Width="210" />
                       <Button Content="Continue with selection" Command="{Binding ChooseCommand}" Visibility="{Binding ChoiceVisibility}" />
                     </StackPanel>
-                    <ListBox ItemsSource="{Binding Results}" ScrollViewer.CanContentScroll="True" VirtualizingPanel.IsVirtualizing="True">
+                    <TextBlock DockPanel.Dock="Bottom" Text="{Binding ArtifactOrigin}" ToolTip="{Binding ArtifactOrigin}" TextWrapping="Wrap" MaxHeight="48" Style="{StaticResource Caption}" Margin="4,6" />
+                    <ListBox ItemsSource="{Binding Results}" SelectedItem="{Binding SelectedResult}" ScrollViewer.CanContentScroll="True" VirtualizingPanel.IsVirtualizing="True">
+                      <ListBox.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ListBox.ItemsPanel>
                       <ListBox.ItemTemplate><DataTemplate><Border BorderBrush="#354359" BorderThickness="1" CornerRadius="5" Margin="1,3" Padding="8"><DockPanel>
                         <CheckBox DockPanel.Dock="Left" IsChecked="{Binding IsChosen}" VerticalAlignment="Top" ToolTip="Select this artifact" />
-                        <StackPanel><TextBlock Text="{Binding Detail}" Style="{StaticResource Caption}" /><TextBlock Text="{Binding Content}" TextWrapping="Wrap" Margin="0,4,0,0" /></StackPanel>
+                        <StackPanel Width="145" ToolTip="{Binding Content}"><TextBlock Text="{Binding Detail}" Style="{StaticResource Caption}" /><Image Source="{Binding Preview}" Visibility="{Binding ImageVisibility}" MaxHeight="115" Stretch="Uniform" Margin="0,6" /><Button Content="View / edit" Click="ViewResult" Padding="6,3" FontSize="11" /><TextBlock Text="{Binding Content}" Visibility="{Binding TextVisibility}" TextWrapping="Wrap" Margin="0,4,0,0" MaxHeight="110" TextTrimming="CharacterEllipsis" /></StackPanel>
                       </DockPanel></Border></DataTemplate></ListBox.ItemTemplate>
                     </ListBox>
                   </DockPanel>
@@ -94,6 +124,15 @@
                       <DataGrid.Columns><DataGridTextColumn Header="Node" Binding="{Binding Title}" Width="*" /><DataGridTextColumn Header="State" Binding="{Binding State}" Width="120" /><DataGridTextColumn Header="Attempt" Binding="{Binding Attempt}" Width="65" /><DataGridTextColumn Header="Detail" Binding="{Binding Message}" Width="230" /></DataGrid.Columns>
                     </DataGrid>
                   </DockPanel>
+                </layout:LayoutAnchorable>
+                <layout:LayoutAnchorable Title="Image batch items" ContentId="BatchItems" CanClose="False">
+                  <DataGrid ItemsSource="{Binding RenderItems}" Margin="8"><DataGrid.Columns>
+                    <DataGridTextColumn Header="Model" Binding="{Binding Specification.Profile.Name}" Width="*" />
+                    <DataGridTextColumn Header="Seed" Binding="{Binding Seed}" Width="90" />
+                    <DataGridTextColumn Header="State" Binding="{Binding State}" Width="100" />
+                    <DataGridTextColumn Header="Attempt" Binding="{Binding Attempt}" Width="60" />
+                    <DataGridTextColumn Header="Detail" Binding="{Binding Message}" Width="180" />
+                  </DataGrid.Columns></DataGrid>
                 </layout:LayoutAnchorable>
               </layout:LayoutAnchorablePane>
               <layout:LayoutAnchorablePane>
@@ -122,12 +161,29 @@
                 <TextBlock Text="{Binding SelectedKind}" Foreground="{StaticResource Accent}" FontSize="13" Margin="0,0,0,12" />
                 <TextBlock Text="Title" Style="{StaticResource Caption}" Margin="0,0,0,4" /><TextBox Text="{Binding SelectedTitle, UpdateSourceTrigger=PropertyChanged}" />
                 <StackPanel Visibility="{Binding TextEditorVisibility}"><TextBlock Text="Text" Style="{StaticResource Caption}" Margin="0,14,0,4" /><TextBox Text="{Binding SelectedText, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="160" VerticalScrollBarVisibility="Auto" /></StackPanel>
+                <StackPanel Visibility="{Binding QwenEditorVisibility}" Margin="0,12,0,0">
+                  <TextBlock Text="Instructions · what to vary / preserve" Style="{StaticResource Caption}" /><TextBox Text="{Binding SelectedInstructions, UpdateSourceTrigger=PropertyChanged}" TextWrapping="Wrap" AcceptsReturn="True" MinHeight="90" />
+                  <TextBlock Text="Variations per source" Style="{StaticResource Caption}" Margin="0,8,0,3" /><TextBox Text="{Binding SelectedCount}" />
+                </StackPanel>
+                <StackPanel Visibility="{Binding PreparationVisibility}" Margin="0,12,0,0">
+                  <TextBlock Text="Image profile IDs · comma separated for comparison" Style="{StaticResource Caption}" /><TextBox Text="{Binding SelectedProfiles}" ToolTip="klein4b, zimage, qwen21, qwen21turbo, kontext" />
+                  <TextBlock Text="Canvas width × height" Style="{StaticResource Caption}" Margin="0,8,0,3" /><StackPanel Orientation="Horizontal"><TextBox Text="{Binding SelectedWidth}" Width="80" /><TextBlock Text=" × " VerticalAlignment="Center" /><TextBox Text="{Binding SelectedHeight}" Width="80" /></StackPanel>
+                  <TextBlock Text="Seeds · comma separated; -1 for random" Style="{StaticResource Caption}" Margin="0,8,0,3" /><TextBox Text="{Binding SelectedSeeds}" />
+                  <TextBlock Text="Negative prompt · applies when CFG supports it" Style="{StaticResource Caption}" Margin="0,8,0,3" /><TextBox Text="{Binding SelectedNegative}" TextWrapping="Wrap" AcceptsReturn="True" MinHeight="55" />
+                  <TextBlock Text="{Binding NodeMatrixPreview}" TextWrapping="Wrap" Foreground="#F3C979" FontSize="11" Margin="0,8" />
+                </StackPanel>
+                <StackPanel Visibility="{Binding FeedbackVisibility}" Margin="0,12,0,0"><TextBlock Text="Selection feedback for the next round" Style="{StaticResource Caption}" /><TextBox Text="{Binding Feedback, UpdateSourceTrigger=PropertyChanged}" TextWrapping="Wrap" AcceptsReturn="True" MinHeight="65" /></StackPanel>
                 <Button Content="Apply changes" Command="{Binding ApplyCommand}" Margin="0,10,0,0" />
+                <TextBlock Text="{Binding ManualOutputSummary}" Style="{StaticResource Caption}" Margin="0,8,0,0" />
+                <Button Content="Clear saved output edits" Command="{Binding ClearManualOutputsCommand}" />
                 <TextBlock Text="Ports" Style="{StaticResource Caption}" Margin="0,20,0,5" /><TextBlock Text="{Binding NodeDetail}" FontSize="11" TextWrapping="Wrap" />
                 <Button Content="Delete node" Command="{Binding RemoveCommand}" Margin="0,20,0,0" />
                 <Separator Margin="0,20" />
                 <TextBlock Text="RESOURCE MANAGER" Foreground="{StaticResource Muted}" FontSize="11" />
                 <TextBlock Text="{Binding SchedulerStatus}" TextWrapping="Wrap" Margin="0,8" />
+                <TextBlock Text="{Binding RuntimeDetail}" Style="{StaticResource Caption}" Margin="0,0,0,8" />
+                <Button Content="Unload idle model" Command="{Binding UnloadCommand}" />
+                <CheckBox Content="Finish image batch before chat" IsChecked="{Binding PreferThroughput}" ToolTip="Unchecked: queued chat runs at the next image boundary. Checked: finish the image batch first." Margin="0,8" />
                 <TextBlock Text="{Binding Resources.RuntimeSummary}" Style="{StaticResource Caption}" Margin="0,0,0,8" />
                 <TextBlock Text="Resource panels can be dragged out into their own windows or docked beside the graph." Style="{StaticResource Caption}" />
                 <TextBlock Text="{Binding Resources.Availability}" Style="{StaticResource Caption}" Margin="0,12,0,0" />

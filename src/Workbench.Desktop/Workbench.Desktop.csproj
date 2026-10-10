@@ -6,6 +6,7 @@
     <AssemblyName>LLMWorkbench</AssemblyName>
   </PropertyGroup>
   <ItemGroup>
+    <Content Include="../../models.json" Link="models.json" CopyToOutputDirectory="PreserveNewest" />
     <ProjectReference Include="../Workbench.Core/Workbench.Core.csproj" />
     <ProjectReference Include="../Workbench.Infrastructure/Workbench.Infrastructure.csproj" />
     <PackageReference Include="Dirkster.AvalonDock" Version="4.72.1" />
