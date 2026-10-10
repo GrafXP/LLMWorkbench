@@ -1,0 +1,11 @@
+**/bin/
+**/obj/
+.vs/
+TestResults/
+*.user
+*.suo
+*.log
+*.sqlite*
+artifacts/
+local-data/
+screenshots/
