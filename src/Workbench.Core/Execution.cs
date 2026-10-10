@@ -3,7 +3,7 @@ namespace Workbench.Core;
 public sealed record Artifact(Guid Id, ArtifactKind Kind, string Content, string? RelativePath, Guid[] Parents, Guid SourceNode, DateTimeOffset CreatedUtc);
 public sealed record RunSnapshot(Guid Id, Guid CommandId, Guid ProjectId, GraphRevision Graph, DateTimeOffset CreatedUtc);
 public sealed record JobRecord(Guid Id, Guid RunId, Guid NodeId, JobState State, Dictionary<string, Guid[]> Inputs, Guid[] Outputs,
-    int Attempt, string Message, DateTimeOffset? StartedUtc = null, DateTimeOffset? FinishedUtc = null);
+    int Attempt, string Message, DateTimeOffset? StartedUtc = null, DateTimeOffset? FinishedUtc = null, Guid[]? Selection = null);
 public sealed record ExecutionResult(JobState State, Artifact[] Artifacts, Guid[] Outputs, string Message)
 {
     public static ExecutionResult Complete(Artifact[] artifacts, Guid[]? outputs = null) => new(JobState.Done, artifacts, outputs ?? artifacts.Select(a => a.Id).ToArray(), "Complete");
