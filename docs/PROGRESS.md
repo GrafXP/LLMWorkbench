@@ -22,3 +22,12 @@
 - Separate working-set/private-memory and normalised CPU readings for the workbench and external inference processes.
 - Bounded timestamped histories and job markers, with unavailable metrics retained as missing values.
 - Tests cover history bounds and actual Windows CPU/RAM sampling.
+
+## Step 4 — native desktop shell
+
+- WPF/AvalonDock workspace with graph, inspector, text preparation, results/selection, queue, and independent floatable RAM/CPU/GPU/VRAM/process panels.
+- Canvas-space zoom/pan, curved typed connections, minimap navigation, node dragging, connection removal, and undo/redo.
+- New/open/autosaved SQLite projects; execution stays attached to saved graph revisions.
+- Live history charts, per-core meters, shared time windows, job-event markers, and selected-job interval highlights.
+- Actual desktop smoke run reached a selection checkpoint, read all 12 CPU cores plus RAM/NVIDIA metrics, and completed all four jobs after selecting a favourite.
+- Chat is explicitly disconnected; no inference runtime is started or stopped in this milestone.

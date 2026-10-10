@@ -1,0 +1,142 @@
+<Window x:Class="Workbench.Desktop.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ctrl="clr-namespace:Workbench.Desktop.Controls"
+        xmlns:dock="https://github.com/Dirkster99/AvalonDock"
+        xmlns:layout="clr-namespace:AvalonDock.Layout;assembly=AvalonDock"
+        xmlns:theme="clr-namespace:AvalonDock.Themes;assembly=AvalonDock.Themes.VS2013"
+        Title="{Binding Title}" Width="1600" Height="960" MinWidth="1100" MinHeight="700" Background="#141A23" Foreground="#E4ECF6" WindowStartupLocation="CenterScreen">
+  <Window.InputBindings>
+    <KeyBinding Gesture="Ctrl+S" Command="{Binding SaveCommand}" />
+    <KeyBinding Gesture="Ctrl+O" Command="{Binding OpenCommand}" />
+    <KeyBinding Gesture="Ctrl+N" Command="{Binding NewCommand}" />
+    <KeyBinding Gesture="F5" Command="{Binding RunCommand}" />
+  </Window.InputBindings>
+  <DockPanel>
+    <Border DockPanel.Dock="Top" Background="#1D2633" BorderBrush="#354359" BorderThickness="0,0,0,1" Padding="12,8">
+      <Grid>
+        <Grid.ColumnDefinitions><ColumnDefinition Width="210" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+        <StackPanel><TextBlock Text="LLM WORKBENCH" FontSize="17" FontWeight="SemiBold" /><TextBlock Text="Text → variations → creation" Style="{StaticResource Caption}" /></StackPanel>
+        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+          <Button Content="New" Command="{Binding NewCommand}" /><Button Content="Open" Command="{Binding OpenCommand}" /><Button Content="Save" Command="{Binding SaveCommand}" />
+          <Button Content="Undo" Command="{Binding UndoCommand}" /><Button Content="Redo" Command="{Binding RedoCommand}" />
+          <Button Content="Run graph  F5" Command="{Binding RunCommand}" Background="#24536C" />
+          <Button Content="{Binding QueueAction}" Command="{Binding PauseCommand}" />
+        </StackPanel>
+        <TextBlock Grid.Column="2" Text="{Binding Resources.Compact}" FontSize="11" VerticalAlignment="Center" Foreground="{StaticResource Muted}" MaxWidth="430" TextWrapping="Wrap" />
+      </Grid>
+    </Border>
+    <Border DockPanel.Dock="Bottom" Background="#1D2633" Padding="12,6" BorderBrush="#354359" BorderThickness="0,1,0,0">
+      <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+        <TextBlock Text="{Binding Status}" FontSize="11" ToolTip="{Binding ProjectPath}" />
+        <TextBlock Grid.Column="1" Text="{Binding Resources.Freshness}" Style="{StaticResource Caption}" />
+      </Grid>
+    </Border>
+    <dock:DockingManager x:Name="DockManager" Background="#141A23" AllowMixedOrientation="True">
+      <dock:DockingManager.Theme><theme:Vs2013DarkTheme /></dock:DockingManager.Theme>
+      <layout:LayoutRoot>
+        <layout:LayoutPanel Orientation="Horizontal">
+          <layout:LayoutAnchorablePane DockWidth="220">
+            <layout:LayoutAnchorable Title="Text &amp; agent" ContentId="Draft" CanClose="False">
+              <ScrollViewer Background="{StaticResource Panel}" VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="12">
+                  <TextBlock Text="BUILD YOUR FLOW" Foreground="{StaticResource Muted}" FontSize="11" Margin="0,0,0,8" />
+                  <Button Content="＋ Text draft" Command="{Binding AddTextCommand}" HorizontalContentAlignment="Left" />
+                  <Button Content="＋ Collect texts" Command="{Binding AddCollectCommand}" HorizontalContentAlignment="Left" />
+                  <Button Content="＋ Select favourites" Command="{Binding AddSelectCommand}" HorizontalContentAlignment="Left" />
+                  <TextBlock Text="Connect an output dot to an input dot. Collections use gold ports." Style="{StaticResource Caption}" Margin="2,10,2,12" />
+                  <Button Content="Example workflow" Command="{Binding ExampleCommand}" />
+                  <Separator Margin="0,16" />
+                  <TextBlock Text="QWEN CHAT" Foreground="{StaticResource Muted}" FontSize="11" />
+                  <TextBlock Text="Agent not connected" FontSize="15" Margin="0,8,0,4" />
+                  <TextBlock Text="You can prepare text drafts manually and add them to the graph." Style="{StaticResource Caption}" />
+                  <TextBlock Text="Draft text" Margin="0,16,0,5" />
+                  <TextBox Text="{Binding Draft, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="170" VerticalScrollBarVisibility="Auto" />
+                  <Button Content="Add draft to graph" Command="{Binding SaveDraftCommand}" Margin="0,8,0,0" />
+                </StackPanel>
+              </ScrollViewer>
+            </layout:LayoutAnchorable>
+          </layout:LayoutAnchorablePane>
+          <layout:LayoutPanel Orientation="Vertical">
+            <layout:LayoutDocumentPane>
+              <layout:LayoutDocument Title="Workflow graph" ContentId="Graph" CanClose="False" CanFloat="False">
+                <DockPanel Background="#141A23">
+                  <Border DockPanel.Dock="Top" Background="#1D2633" Padding="10,5">
+                    <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                      <TextBlock Text="{Binding SchedulerStatus}" Style="{StaticResource Caption}" VerticalAlignment="Center" />
+                      <Button Grid.Column="1" Content="Fit graph" Click="FitGraph" />
+                    </Grid>
+                  </Border>
+                  <ctrl:NodeCanvas x:Name="GraphCanvas" Model="{Binding}" />
+                </DockPanel>
+              </layout:LayoutDocument>
+            </layout:LayoutDocumentPane>
+            <layout:LayoutPanel Orientation="Horizontal" DockHeight="270">
+              <layout:LayoutAnchorablePane DockWidth="520">
+                <layout:LayoutAnchorable Title="Results &amp; selection" ContentId="Results" CanClose="False" IsSelected="True">
+                  <DockPanel Background="{StaticResource Panel}" Margin="8">
+                    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,6">
+                      <TextBlock Text="Run" VerticalAlignment="Center" Margin="0,0,8,0" />
+                      <ComboBox ItemsSource="{Binding Runs}" SelectedItem="{Binding SelectedRun}" DisplayMemberPath="Label" Width="210" />
+                      <Button Content="Continue with selection" Command="{Binding ChooseCommand}" Visibility="{Binding ChoiceVisibility}" />
+                    </StackPanel>
+                    <ListBox ItemsSource="{Binding Results}" ScrollViewer.CanContentScroll="True" VirtualizingPanel.IsVirtualizing="True">
+                      <ListBox.ItemTemplate><DataTemplate><Border BorderBrush="#354359" BorderThickness="1" CornerRadius="5" Margin="1,3" Padding="8"><DockPanel>
+                        <CheckBox DockPanel.Dock="Left" IsChecked="{Binding IsChosen}" VerticalAlignment="Top" ToolTip="Select this artifact" />
+                        <StackPanel><TextBlock Text="{Binding Detail}" Style="{StaticResource Caption}" /><TextBlock Text="{Binding Content}" TextWrapping="Wrap" Margin="0,4,0,0" /></StackPanel>
+                      </DockPanel></Border></DataTemplate></ListBox.ItemTemplate>
+                    </ListBox>
+                  </DockPanel>
+                </layout:LayoutAnchorable>
+                <layout:LayoutAnchorable Title="Job queue" ContentId="Queue" CanClose="False">
+                  <DockPanel Background="{StaticResource Panel}" Margin="8">
+                    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal"><Button Content="Cancel selected" Command="{Binding CancelCommand}" /><Button Content="Retry selected" Command="{Binding RetryCommand}" /></StackPanel>
+                    <DataGrid ItemsSource="{Binding Jobs}" SelectedItem="{Binding SelectedJob}">
+                      <DataGrid.Columns><DataGridTextColumn Header="Node" Binding="{Binding Title}" Width="*" /><DataGridTextColumn Header="State" Binding="{Binding State}" Width="120" /><DataGridTextColumn Header="Attempt" Binding="{Binding Attempt}" Width="65" /><DataGridTextColumn Header="Detail" Binding="{Binding Message}" Width="230" /></DataGrid.Columns>
+                    </DataGrid>
+                  </DockPanel>
+                </layout:LayoutAnchorable>
+              </layout:LayoutAnchorablePane>
+              <layout:LayoutAnchorablePane>
+                <layout:LayoutAnchorable Title="Resource dashboard" ContentId="Dashboard" CanClose="False" IsSelected="True">
+                  <DockPanel Background="{StaticResource Panel}" Margin="10">
+                    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,5"><TextBlock Text="History" VerticalAlignment="Center" Margin="0,0,8,0" /><ComboBox ItemsSource="{Binding Resources.Windows}" SelectedItem="{Binding Resources.Minutes}" Width="62" /><TextBlock Text="minutes · whole system" Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="8,0" /></StackPanel>
+                    <UniformGrid Columns="2" Rows="2">
+                      <StackPanel Margin="0,0,8,6"><TextBlock Text="CPU" FontSize="11" Foreground="{StaticResource Muted}" /><TextBlock Text="{Binding Resources.Cpu}" FontSize="18" /><ctrl:ResourceChart Model="{Binding Resources}" Metric="CPU" Height="55" /></StackPanel>
+                      <StackPanel Margin="0,0,0,6"><TextBlock Text="RAM" FontSize="11" Foreground="{StaticResource Muted}" /><TextBlock Text="{Binding Resources.Ram}" FontSize="18" /><ctrl:ResourceChart Model="{Binding Resources}" Metric="RAM" Height="55" /></StackPanel>
+                      <StackPanel Margin="0,0,8,0"><TextBlock Text="GPU" FontSize="11" Foreground="{StaticResource Muted}" /><TextBlock Text="{Binding Resources.Gpu}" FontSize="18" /><ctrl:ResourceChart Model="{Binding Resources}" Metric="GPU" Height="55" /></StackPanel>
+                      <StackPanel><TextBlock Text="VRAM" FontSize="11" Foreground="{StaticResource Muted}" /><TextBlock Text="{Binding Resources.Vram}" FontSize="18" /><ctrl:ResourceChart Model="{Binding Resources}" Metric="VRAM" Height="55" /></StackPanel>
+                    </UniformGrid>
+                  </DockPanel>
+                </layout:LayoutAnchorable>
+                <layout:LayoutAnchorable Title="RAM" ContentId="RAM" CanClose="False"><StackPanel Background="{StaticResource Panel}" Margin="12"><TextBlock Text="Physical RAM" FontSize="13" /><TextBlock Text="{Binding Resources.Ram}" FontSize="25" Margin="0,5" /><TextBlock Text="{Binding Resources.RamDetail}" Style="{StaticResource Caption}" /><ctrl:ResourceChart Model="{Binding Resources}" Metric="RAM" Height="110" Margin="0,12,0,0" /></StackPanel></layout:LayoutAnchorable>
+                <layout:LayoutAnchorable Title="CPU" ContentId="CPU" CanClose="False"><ScrollViewer Background="{StaticResource Panel}"><StackPanel Margin="12"><TextBlock Text="{Binding Resources.Cpu}" FontSize="25" /><ctrl:ResourceChart Model="{Binding Resources}" Metric="CPU" Height="80" Margin="0,8" /><ItemsControl ItemsSource="{Binding Resources.Cores}"><ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="4" /></ItemsPanelTemplate></ItemsControl.ItemsPanel><ItemsControl.ItemTemplate><DataTemplate><StackPanel Margin="4"><TextBlock Text="{Binding Label}" Style="{StaticResource Caption}" /><ProgressBar Value="{Binding Percent}" Maximum="100" Height="5" Margin="0,3" /><TextBlock Text="{Binding Value}" FontSize="10" /></StackPanel></DataTemplate></ItemsControl.ItemTemplate></ItemsControl></StackPanel></ScrollViewer></layout:LayoutAnchorable>
+                <layout:LayoutAnchorable Title="GPU" ContentId="GPU" CanClose="False"><StackPanel Background="{StaticResource Panel}" Margin="12"><TextBlock Text="{Binding Resources.GpuName}" FontSize="13" /><TextBlock Text="{Binding Resources.Gpu}" FontSize="25" Margin="0,5" /><TextBlock Text="{Binding Resources.GpuDetail}" Style="{StaticResource Caption}" /><ctrl:ResourceChart Model="{Binding Resources}" Metric="GPU" Height="110" Margin="0,12,0,0" /></StackPanel></layout:LayoutAnchorable>
+                <layout:LayoutAnchorable Title="VRAM" ContentId="VRAM" CanClose="False"><StackPanel Background="{StaticResource Panel}" Margin="12"><TextBlock Text="Dedicated GPU memory" FontSize="13" /><TextBlock Text="{Binding Resources.Vram}" FontSize="25" Margin="0,5" /><TextBlock Text="{Binding Resources.VramDetail}" Style="{StaticResource Caption}" /><ctrl:ResourceChart Model="{Binding Resources}" Metric="VRAM" Height="110" Margin="0,12,0,0" /></StackPanel></layout:LayoutAnchorable>
+                <layout:LayoutAnchorable Title="Runtime processes" ContentId="Processes" CanClose="False"><DockPanel Background="{StaticResource Panel}" Margin="8"><TextBlock DockPanel.Dock="Top" Text="CPU is normalised across all logical cores. Working sets may include shared memory." Style="{StaticResource Caption}" Margin="0,0,0,6" /><DataGrid ItemsSource="{Binding Resources.Processes}"><DataGrid.Columns><DataGridTextColumn Header="Process" Binding="{Binding Name}" Width="*" /><DataGridTextColumn Header="PID" Binding="{Binding Pid}" /><DataGridTextColumn Header="Owner" Binding="{Binding Ownership}" /><DataGridTextColumn Header="CPU %" Binding="{Binding CpuPercent, StringFormat=F1}" /><DataGridTextColumn Header="RAM bytes" Binding="{Binding WorkingSet, StringFormat=N0}" /><DataGridTextColumn Header="Private bytes" Binding="{Binding PrivateBytes, StringFormat=N0}" /></DataGrid.Columns></DataGrid></DockPanel></layout:LayoutAnchorable>
+              </layout:LayoutAnchorablePane>
+            </layout:LayoutPanel>
+          </layout:LayoutPanel>
+          <layout:LayoutAnchorablePane DockWidth="270">
+            <layout:LayoutAnchorable Title="Node inspector" ContentId="Inspector" CanClose="False">
+              <ScrollViewer Background="{StaticResource Panel}" VerticalScrollBarVisibility="Auto"><StackPanel Margin="12">
+                <TextBlock Text="{Binding SelectedKind}" Foreground="{StaticResource Accent}" FontSize="13" Margin="0,0,0,12" />
+                <TextBlock Text="Title" Style="{StaticResource Caption}" Margin="0,0,0,4" /><TextBox Text="{Binding SelectedTitle, UpdateSourceTrigger=PropertyChanged}" />
+                <StackPanel Visibility="{Binding TextEditorVisibility}"><TextBlock Text="Text" Style="{StaticResource Caption}" Margin="0,14,0,4" /><TextBox Text="{Binding SelectedText, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="160" VerticalScrollBarVisibility="Auto" /></StackPanel>
+                <Button Content="Apply changes" Command="{Binding ApplyCommand}" Margin="0,10,0,0" />
+                <TextBlock Text="Ports" Style="{StaticResource Caption}" Margin="0,20,0,5" /><TextBlock Text="{Binding NodeDetail}" FontSize="11" TextWrapping="Wrap" />
+                <Button Content="Delete node" Command="{Binding RemoveCommand}" Margin="0,20,0,0" />
+                <Separator Margin="0,20" />
+                <TextBlock Text="RESOURCE MANAGER" Foreground="{StaticResource Muted}" FontSize="11" />
+                <TextBlock Text="{Binding SchedulerStatus}" TextWrapping="Wrap" Margin="0,8" />
+                <TextBlock Text="{Binding Resources.RuntimeSummary}" Style="{StaticResource Caption}" Margin="0,0,0,8" />
+                <TextBlock Text="Resource panels can be dragged out into their own windows or docked beside the graph." Style="{StaticResource Caption}" />
+                <TextBlock Text="{Binding Resources.Availability}" Style="{StaticResource Caption}" Margin="0,12,0,0" />
+                <TextBlock Text="Project" Style="{StaticResource Caption}" Margin="0,20,0,4" /><TextBlock Text="{Binding ProjectPath}" FontSize="10" TextWrapping="Wrap" />
+              </StackPanel></ScrollViewer>
+            </layout:LayoutAnchorable>
+          </layout:LayoutAnchorablePane>
+        </layout:LayoutPanel>
+      </layout:LayoutRoot>
+    </dock:DockingManager>
+  </DockPanel>
+</Window>

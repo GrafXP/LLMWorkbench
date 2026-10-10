@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/Workbench.Core/Workbench.Core.csproj" />
+    <Project Path="src/Workbench.Desktop/Workbench.Desktop.csproj" />
     <Project Path="src/Workbench.Infrastructure/Workbench.Infrastructure.csproj" />
   </Folder>
   <Folder Name="/tests/">

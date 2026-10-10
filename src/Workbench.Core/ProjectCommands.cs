@@ -15,7 +15,11 @@ public sealed class ProjectCommands
 
     public void Add(GraphNode node) => Edit(g => g with { Nodes = [.. g.Nodes, DocumentJson.Copy(node)] });
     public void Remove(Guid id) => Edit(g => g with { Nodes = g.Nodes.Where(n => n.Id != id).ToArray(), Edges = g.Edges.Where(e => e.SourceNode != id && e.TargetNode != id).ToArray() });
-    public void Update(GraphNode node) => Edit(g => g with { Nodes = g.Nodes.Select(n => n.Id == node.Id ? DocumentJson.Copy(node) : n).ToArray() });
+    public void Update(GraphNode node)
+    {
+        if (!_current.Graph.Nodes.Any(n => n.Id == node.Id)) throw new GraphValidationException("The node no longer exists.");
+        Edit(g => g with { Nodes = g.Nodes.Select(n => n.Id == node.Id ? DocumentJson.Copy(node) : n).ToArray() });
+    }
     public void Disconnect(Guid id) => Edit(g => g with { Edges = g.Edges.Where(e => e.Id != id).ToArray() });
     public void Connect(Guid source, string output, Guid target, string input) => Edit(g => g with
     {
