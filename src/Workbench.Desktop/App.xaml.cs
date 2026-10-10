@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using Workbench.Core;
+using AvalonDock.Layout;
 
 namespace Workbench.Desktop;
 
@@ -71,7 +72,19 @@ public partial class App : Application
         try
         {
             Directory.CreateDirectory(directory);
-            model.CreateExample(); window.GraphCanvas.Fit(); model.RunCommand.Execute(null);
+            model.CreateExample();
+            var edge = model.Graph.Edges[0];
+            model.Disconnect(edge.Id);
+            if (model.Graph.Edges.Length != 2) throw new InvalidOperationException("Disconnect failed.");
+            model.UndoCommand.Execute(null);
+            if (model.Graph.Edges.Length != 3) throw new InvalidOperationException("Undo failed.");
+            model.RedoCommand.Execute(null);
+            model.Connect(edge.SourceNode, edge.SourcePort, edge.TargetNode, edge.TargetPort);
+            var text = model.Graph.Nodes.First(n => n.Kind == NodeKind.Text);
+            var choice = model.Graph.Nodes.Single(n => n.Kind == NodeKind.Select);
+            model.Connect(text.Id, "text", choice.Id, "items");
+            if (model.Graph.Edges.Length != 3) throw new InvalidOperationException("Invalid connection modified the graph.");
+            window.GraphCanvas.Fit(); model.RunCommand.Execute(null);
             for (var i = 0; i < 50 && !model.Jobs.Any(j => j.Record.State == JobState.AwaitingSelection); i++) await Task.Delay(100);
             if (!model.Jobs.Any(j => j.Record.State == JobState.AwaitingSelection)) throw new InvalidOperationException("The example did not reach its selection checkpoint.");
             var selection = model.Jobs.Single(j => j.Record.State == JobState.AwaitingSelection);
@@ -83,6 +96,11 @@ public partial class App : Application
             using (var file = File.Create(Path.Combine(directory, "workbench.png"))) encoder.Save(file);
             File.WriteAllText(Path.Combine(directory, "state.json"), model.ExportState());
             if (model.Resources.Snapshot?.Memory is null || model.Resources.Snapshot.CpuPercent is null) throw new InvalidOperationException("RAM/CPU telemetry did not arrive.");
+            var ram = window.DockManager.Layout.Descendents().OfType<LayoutAnchorable>().Single(p => p.ContentId == "RAM");
+            ram.FloatingLeft = -10000; ram.FloatingTop = -10000;
+            ram.Float(); await Task.Delay(100);
+            if (!window.DockManager.Layout.FloatingWindows.Any()) throw new InvalidOperationException("Resource panel did not float.");
+            ram.Dock();
             model.Results[0].IsChosen = true; model.ChooseCommand.Execute(null);
             for (var i = 0; i < 40 && model.Jobs.Any(j => j.Record.State != JobState.Done); i++) await Task.Delay(100);
             if (model.Jobs.Any(j => j.Record.State != JobState.Done)) throw new InvalidOperationException("The example did not complete after selection.");

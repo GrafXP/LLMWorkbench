@@ -7,6 +7,32 @@ namespace Workbench.Tests;
 public class TelemetryTests
 {
     [Fact]
+    public async Task CollectorFailureIsVisibleAndSamplingRecovers()
+    {
+        using var service = new TelemetryService(new FailingCollector());
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        var recovered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.Sampled += s => { if (s.CpuPercent.HasValue) recovered.TrySetResult(); };
+        var sampling = service.RunAsync(cts.Token);
+        await recovered.Task.WaitAsync(TimeSpan.FromSeconds(4));
+        cts.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () => await sampling);
+        var history = service.History.Window(TimeSpan.FromMinutes(2));
+        Assert.Null(history[0].CpuPercent);
+        Assert.Contains("Telemetry unavailable", history[0].Unavailable[0]);
+        Assert.Equal(50d, history[^1].CpuPercent);
+    }
+    private sealed class FailingCollector : IResourceCollector
+    {
+        private int _calls;
+        public ResourceSnapshot Read()
+        {
+            if (++_calls == 1) throw new InvalidOperationException("Provider stopped");
+            return new(DateTimeOffset.UtcNow, 50, [], null, null, [], []);
+        }
+        public void Dispose() { }
+    }
+    [Fact]
     public void HistoryBoundsSamplesAndMarkersAndPreservesUnavailableValues()
     {
         var history = new ResourceHistory(3); var start = DateTimeOffset.UtcNow;

@@ -73,9 +73,17 @@ public sealed class JobScheduler(IProjectStore store, INodeExecutor executor, Re
             Save(job);
             var artifacts = store.LoadArtifacts().ToDictionary(a => a.Id);
             var inputs = job.Inputs.ToDictionary(kv => kv.Key, kv => kv.Value.Select(id => artifacts.TryGetValue(id, out var artifact) ? artifact : throw new InvalidDataException("An input artifact is missing.")).ToArray());
+            foreach (var port in node.Ports.Where(p => p.IsInput))
+            {
+                var values = inputs.GetValueOrDefault(port.Id, []);
+                if (port.Required && values.Length == 0 || values.Length > 0 && port.Cardinality == Cardinality.Single && values.Length != 1)
+                    throw new InvalidDataException($"{port.Name} has an invalid number of input artifacts.");
+                if (values.Any(a => a.Kind != port.Type)) throw new InvalidDataException($"{port.Name} received an incompatible artifact type.");
+            }
             using var lease = await resources.AcquireAsync(executor.ResourceFor(node.Kind), job.Id, cts.Token);
             var result = await executor.ExecuteAsync(new(run, node, job, inputs), cts.Token);
             cts.Token.ThrowIfCancellationRequested();
+            ValidateResult(node, result, artifacts);
             job = job with { State = result.State, Outputs = result.Outputs, Message = result.Message, FinishedUtc = DateTimeOffset.UtcNow };
             store.Complete(job, result.Artifacts);
             Publish(job);
@@ -114,6 +122,25 @@ public sealed class JobScheduler(IProjectStore store, INodeExecutor executor, Re
         Save(job with { State = JobState.Queued, Selection = artifactIds.Distinct().ToArray(), Message = "Selection saved" });
     }
     public JobRecord Find(Guid id) => store.LoadRuns().SelectMany(r => store.LoadJobs(r.Id)).Single(j => j.Id == id);
+    private static void ValidateResult(GraphNode node, ExecutionResult result, Dictionary<Guid, Artifact> existing)
+    {
+        if (result.State is not (JobState.Done or JobState.AwaitingSelection)) throw new InvalidDataException("The executor returned an invalid completion state.");
+        if (result.State == JobState.AwaitingSelection)
+        {
+            if (result.Outputs.Length > 0 || result.Artifacts.Length > 0) throw new InvalidDataException("A selection checkpoint cannot publish final outputs.");
+            return;
+        }
+        var output = node.Ports.Single(p => !p.IsInput);
+        if (output.Cardinality == Cardinality.Single && result.Outputs.Length != 1) throw new InvalidDataException("The executor must return one output for a single-artifact port.");
+        var produced = new Dictionary<Guid, Artifact>(existing);
+        foreach (var artifact in result.Artifacts)
+        {
+            if (artifact.SourceNode != node.Id || artifact.Parents.Any(id => !existing.ContainsKey(id))) throw new InvalidDataException("The output artifact has invalid lineage.");
+            if (!produced.TryAdd(artifact.Id, artifact)) throw new InvalidDataException("The executor reused an immutable artifact ID.");
+        }
+        foreach (var id in result.Outputs)
+            if (!produced.TryGetValue(id, out var artifact) || artifact.Kind != output.Type) throw new InvalidDataException("The executor returned a missing or incompatible output artifact.");
+    }
     private void Save(JobRecord job) { store.SaveJob(job); Publish(job); }
     private void Publish(JobRecord job) => Changed?.Invoke(new(job.RunId, job.NodeId, job.Id, job.State, job.Message, DateTimeOffset.UtcNow));
 }

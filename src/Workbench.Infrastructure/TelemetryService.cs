@@ -12,7 +12,9 @@ public sealed class TelemetryService(IResourceCollector collector) : IDisposable
         using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
         do
         {
-            var sample = collector.Read();
+            ResourceSnapshot sample;
+            try { sample = collector.Read(); }
+            catch (Exception ex) { sample = new(DateTimeOffset.UtcNow, null, [], null, null, [], [$"Telemetry unavailable: {ex.Message}"]); }
             Latest = sample; History.Add(sample); Sampled?.Invoke(sample);
         } while (await timer.WaitForNextTickAsync(ct));
     }
